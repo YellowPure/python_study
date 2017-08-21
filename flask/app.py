@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    return render_template('./flask/home.html')
+    return render_template('home.html')
 
 @app.route('/signin', methods=['GET'])
 def signin_form():
