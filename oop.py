@@ -74,3 +74,9 @@ isinstance('a', str) # True
 isinstance('a', (str, unicode))
 # 获得一个对象的所有属性和方法
 # print dir('ABC')
+
+class Test(object): 
+    def __init__(self, name, *args, **kw):
+        print('prop is %s, and %s' % (args, kw))
+
+test = Test('test', range(5), dict(name = 'fucking'))

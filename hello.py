@@ -4,7 +4,7 @@
 name = raw_input('please input you name:')
 print 'hello, i\'m ok ' , name
 
-# 多行字符串前面加r 字符串中符合默认补转义
+多行字符串前面加r 字符串中符合默认补转义
 
 print '''line1\'
 line2

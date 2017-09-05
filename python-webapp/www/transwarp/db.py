@@ -74,7 +74,7 @@ def create_engine(user, password, database, host='127.0.0.1', port = 3306, **kw)
     params = dict(user=user, password = password, database = database, host = host, port = port)
     defaults = dict(use_unicode = True, charset = 'utf-8', collation = 'utf8_general_ci', autocommit = False)
     for k,v in defaults.iteritems():
-        params[k] = kw.pop(k, v)
+        params[k] = kw.pop(k, v) # 删除kw中的k 并且当找不到k的时候返回v值
     params.update(kw)
     params['buffered'] = True
     engine = _Engine(lambda: mysql.connector.connect(**params))
@@ -137,6 +137,7 @@ def with_transaction(func):
     比如:
         @with_transaction
         def do_in_transaction():
+
     >>> @with_transaction
     ... def update_profile(id, name, rollback):
     ...     u = dict(id=id, name=name, email='%s@test.org' % name, passwd=name, last_modified=time.time())
@@ -172,7 +173,7 @@ def _select(sql, first, *args):
         cursor = _db_ctx.connection.cursor()
         cursor.execute(sql, args)
         if cursor.description:
-            names = [x[0] for x in cursor.description]
+            names = [x[0] for x in cursor.description] # 先执行后面的for循环然后取结果的第一个参数
         if first:
             values = cursor.fetchone()
             if not values:
@@ -300,7 +301,7 @@ def update(sql, *args):
     """
     return _update(sql, *args)
 
-def inser(table, **kw):
+def insert(table, **kw):
     """
     执行insert语句
     >>> u1 = dict(id=2000, name='Bob', email='bob@test.org', passwd='bobobob', last_modified=time.time())
@@ -451,21 +452,6 @@ class _ConnectionCtx(object):
         if self.should_cleanup:
             _db_ctx.cleanup()
 
-
-# def connection():
-#     return _ConnectionCtx()
-
-# # with connection():
-#     # do_some_db_peration()
-#     # pass
-
-# @with_connection
-# def select(sql, *args):
-#     pass
-
-# @with_connection
-# def update(sql, *args):
-#     pass
 
 class _TransactionCtx(object):
     """
