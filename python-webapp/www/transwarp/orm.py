@@ -48,7 +48,7 @@ def _gen_sql(table_name, mappings):
         nullable = f.nullable
         if f.primary_key:
             pk = f.name
-        sql.append(' `%s` %s,' % (f.name, ddl) if nullable else '  `%s` %s not null', % (f.name, ddl))
+        sql.append(' `%s` %s,' % (f.name, ddl) if nullable else '  `%s` %s not null,' % (f.name, ddl))
     sql.append('   primary key (`%s`)' % pk)
     sql.append(');')
     return '\n'.join(sql)
@@ -107,7 +107,7 @@ class Field(object):
         return d() if callable(d) else d
 
     def __str__(self):
-         """
+        """
         返回实例对象的描述信息，比如：
             <IntegerField:id,bigint,default(0),UI>
             类：实例：实例ddl属性：实例default信息，3中标志位：N U I
@@ -230,22 +230,22 @@ class ModelMetaclass(type):
             if isinstance(v, Field):
                 if not v.name:
                     v.name = k
-            logging.info('[MAPPING] Found mapping: %s => %s' % (k, v))
-            # check duplicate primary_key
-            if v.primary_key:
-                if primary_key:
-                    raise TypeError('Cannot define more than 1 primary key in class: %s' % name)
-                if v.updatable:
-                    logging.warning('NOTE: change primary key to non-updatable')
-                    v.updatable = False
-                if v.nullable:
-                    logging.warning('NOTE: change primary key to non-nullable')
-                    v.nullable = False
-                primary_key = v
-            mappings[k] = v
+                logging.info('[MAPPING] Found mapping: %s => %s' % (k, v))
+                # check duplicate primary_key
+                if v.primary_key:
+                    if primary_key:
+                        raise TypeError('Cannot define more than 1 primary key in class: %s' % name)
+                    if v.updatable:
+                        logging.warning('NOTE: change primary key to non-updatable')
+                        v.updatable = False
+                    if v.nullable:
+                        logging.warning('NOTE: change primary key to non-nullable')
+                        v.nullable = False
+                    primary_key = v
+                mappings[k] = v
         # check exist of primary key
         if not primary_key:
-            raise TypeError('Primary Key not defined in Class %s' % name)
+            raise TypeError('Primary Key not defined in Class: %s' % name)
         for k in mappings.iterkeys():
             attrs.pop(k)
         if not '__table__' in attrs:
@@ -357,7 +357,7 @@ class Model(object):
         """
         查询所有字段， 将结果以一个列表返回
         """
-        L = db.select('select * from %s' %s cls.__table__)
+        L = db.select('select * from %s' % cls.__table__)
         return [cls(**d) for d in L]
 
     @classmethod
@@ -401,7 +401,7 @@ class Model(object):
             if v.updatable:
                 if hasattr(self, k):
                     arg = getattr(self, k)
-                else
+                else:
                     arg = v.default
                     setattr(self, k, arg)
                 L.append('`%s`=?' % k)

@@ -530,7 +530,7 @@ class Request(object):
         return copy
 
     def get_body(self):
-         """
+        """
         从HTTP POST 请求中取得 body里面的数据，返回为一个str对象
         >>> from StringIO import StringIO
         >>> r = Request({'REQUEST_METHOD':'POST', 'wsgi.input':StringIO('<xml><raw/>')})
@@ -603,7 +603,7 @@ class Request(object):
 
     @property
     def path_info(self):
-         """
+        """
         Get request path as str.
         >>> r = Request({'PATH_INFO': '/test/a%20b.html'})
         >>> r.path_info
@@ -623,7 +623,7 @@ class Request(object):
 
     @property
     def _get_headers(self):
-          """
+        """
         从environ里 取得HTTP_开通的 header
         """
         if not hasattr(self, '_headers'):
@@ -650,7 +650,7 @@ class Request(object):
         >>> L
         [('ACCEPT', u'text/html'), ('USER-AGENT', u'Mozilla/5.0')]
         """
-        return dict(**self, _get_headers())
+        return dict(**self._get_headers())
 
     @property
     def header(self, header, default=None):
@@ -771,7 +771,7 @@ class Response(object):
 
     @property
     def content_type(self):
-         """
+        """
         setter 方法实现的属性，用户保存header： Content-Type的值
         >>> r = Response()
         >>> r.content_type
@@ -860,7 +860,7 @@ class Response(object):
                 L.append('Expires=%s' % datetime.datetime.fromtimestamp(expires, UTC_0).strftime('%a, %d-%b-%y %H:%M:%S GMT'))
             if isinstance(expires, (datetime.date, datetime)):
                 L.append('Expires=%s' % expires.astimezone(UTC_0).strftime('%a, %d-%b-%Y %H:%M:%S GMT'))
-        else isinstance(max_age, (int, long)):
+        elif isinstance(max_age, (int, long)):
             L.append('Max-Age=%d' % max_age)
         L.append('Path=%s' % path)
         if domain:
@@ -954,7 +954,7 @@ class Response(object):
                     self._status = str(value)
             else:
                 raise ValueError('Bad Response code: %d' % value)
-        else isinstance(value, basestring):
+        elif isinstance(value, basestring):
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
             if _RE_RESPONSE_STATUS.match(value):
@@ -1389,8 +1389,8 @@ class WSGIApplication(object):
             raise RuntimeError('Cannot modify WSGIApplication when running.')
     
     @property
-    def template_engine(self);
-    return self._template_engine
+    def template_engine(self):
+        return self._template_engine
 
     @template_engine.setter
     def template_engine(self, engine):
@@ -1491,7 +1491,7 @@ class WSGIApplication(object):
                     r = self._template_engine(r,template_name, r.model)
                 if isinstance(r, unicode):
                     r = r.encode('utf-8')
-                if r = None:
+                if r is None:
                     r = []
                 start_response(response.status, response.headers)
                 return r
