@@ -1487,9 +1487,8 @@ class WSGIApplication(object):
             try:
                 r = fn_exec()
                 if isinstance(r, Template):
-                    r = self._template_engine(r,template_name, r.model)
+                    r = self._template_engine(r.template_name, r.model)
                 if isinstance(r, unicode):
-                    type('printttttttttttttttttttttttttttt r: %s' % r)
                     r = r.encode('utf-8')
                 if r is None:
                     r = []
