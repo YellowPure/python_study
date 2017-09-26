@@ -249,7 +249,7 @@ class _HttpError(Exception):
         Init an HttpError with response code.
         """
         super(_HttpError, self).__init__()
-        self.status = '%d %s' % (code, _RE_RESPONSE_STATUSES[code])
+        self.status = '%d %s' % (code, _RESPONSE_STATUSES[code])
         self._headers = None
     
     def header(self, name, value):
@@ -1476,7 +1476,6 @@ class WSGIApplication(object):
             raise badrequest()
         
         fn_exec = _build_interceptor_chain(fn_route, *self._interceptors)
-        fn_exec = _build_interceptor_chain(fn_route, *self._interceptors)
 
         def wsgi(env, start_response):
             """
@@ -1490,6 +1489,7 @@ class WSGIApplication(object):
                 if isinstance(r, Template):
                     r = self._template_engine(r,template_name, r.model)
                 if isinstance(r, unicode):
+                    type('printttttttttttttttttttttttttttt r: %s' % r)
                     r = r.encode('utf-8')
                 if r is None:
                     r = []

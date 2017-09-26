@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
 # 文件里有非ASCII字符，需要在第一行或第二行指定编码声明
-
 """
 orm模块设计的原因：
     1. 简化操作
@@ -90,7 +89,7 @@ class Field(object):
     def __init__(self, **kw):
         self.name = kw.get('name', None)
         self._default = kw.get('default', None)
-        self.primary_key = kw.get('primary_ley', None)
+        self.primary_key = kw.get('primary_key', None)
         self.nullable = kw.get('nullable', False)
         self.updatable = kw.get('updatable', True)
         self.insertable = kw.get('insertable', True)
@@ -124,10 +123,10 @@ class StringField(Field):
     保存String类型字段的属性
     """
     def __init__(self, **kw):
-        if 'default' not in kw:
+        if not 'default' in kw:
             kw['default'] = ''
         
-        if 'ddl' not in kw:
+        if not 'ddl' in kw:
             kw['ddl'] = 'varchar(255)'
         super(StringField, self).__init__(**kw)
 
@@ -241,6 +240,7 @@ class ModelMetaclass(type):
                     if v.nullable:
                         logging.warning('NOTE: change primary key to non-nullable')
                         v.nullable = False
+                    logging.info('Primary Key is: %s' % primary_key)
                     primary_key = v
                 mappings[k] = v
         # check exist of primary key
@@ -259,7 +259,7 @@ class ModelMetaclass(type):
 
         return type.__new__(cls, name, bases, attrs)
 
-class Model(object):
+class Model(dict):
     """
     这是一个基类，用户在子类中 定义映射关系， 因此我们需要动态扫描子类属性 ，
     从中抽取出类属性， 完成 类 <==> 表 的映射， 这里使用 metaclass 来实现。
@@ -429,7 +429,7 @@ class Model(object):
         """
         self.pre_insert and self.pre_insert()
         params = {}
-        for k, v in self.__mapping__.iteritems():
+        for k, v in self.__mappings__.iteritems():
             if v.insertable:
                 if not hasattr(self, k):
                     setattr(self, k, v.default)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
 # 文件里有非ASCII字符，需要在第一行或第二行指定编码声明
-
+__author = 'Leon'
 """
 设计db模块的原因：
   1. 更简单的操作数据库
@@ -42,7 +42,24 @@
 """
 import time, uuid, functools, threading, logging
 
-engine = None
+class Dict(dict):
+    """
+    字典对象
+    实现一个简单的可以通过属性访问的字典，比如 x.key = value
+    """
+    def __init__(self, names=(), values=(), **kw):
+        super(Dict, self).__init__(**kw)
+        for k,v in zip(names, values):
+            self[k] = v
+    
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(r"'Dict' object has no attribute '%s'" % key)
+    
+    def __setattr__(self, key, value):
+        self[key] = value
 
 def next_id(t=None):
     """
@@ -62,6 +79,92 @@ def _profiling(start, sql=''):
     else:
         logging.info('[PROFILING] [DB] %s: %s' % (t, sql))
 
+class DBError(Exception):
+    pass
+
+class MultiColumnsError(Exception):
+    pass
+
+class _LasyConnection(object):
+    """
+    惰性连接对象
+    仅当需要cursor对象时，才连接数据库，获取连接
+    """
+    def __init__(self):
+        self.connection = None
+
+    def cursor(self):
+        if self.connection is None:
+            _connection = engine.connect()
+            logging.info('[CONNECTION [OPEN] connection] <%s>...' % hex(id(_connection)))
+            self.connection = _connection
+        return self.connection.cursor()
+
+    def commit(self):
+        self.connection.commit()
+    
+    def rollback(self):
+        self.connection.rollback()
+
+    def cleanup(self):
+        if self.connection:
+            _connection = self.connection
+            self.connection = None
+            logging.info('[CONNECTION] [CLOSE] <%s>...' % hex(id(_connection)))
+            _connection.close()
+
+class _DbCtx(threading.local):
+    """
+    db模块的核心对象, 数据库连接的上下文对象，负责从数据库获取和释放连接
+    取得的连接是惰性连接对象，因此只有调用cursor对象时，才会真正获取数据库连接
+    该对象是一个 Thread local对象，因此绑定在此对象上的数据 仅对本线程可见
+    """
+    def __init__(self):
+        self.connection = None
+        self.transactions = 0
+
+    def is_init(self):
+        """
+        返回一个布尔值，用于判断 此对象的初始化状态
+        """
+        return not self.connection is None
+
+    def init(self):
+        """
+        初始化连接的上下文对象，获得一个惰性连接对象
+        """
+        logging.info('open lazy connection...')
+        self.connection = _LasyConnection()
+        self.transactions = 0
+    
+    def cleanup(self):
+        """
+        清理连接对象，关闭连接
+        """
+        self.connection.cleanup()
+        self.connection = None
+    
+    def cursor(self):
+        """
+        获取cursor对象， 真正取得数据库连接
+        """
+        return self.connection.cursor()
+
+# thread-local db context:
+_db_ctx = _DbCtx()
+
+engine = None
+
+class _Engine(object):
+    """
+    数据库引擎对象
+    用于保存 db模块的核心函数：create_engine 创建出来的数据库连接
+    """
+    def __init__(self, connect):
+        self._connect = connect
+    def connect(self):
+        return self._connect()
+
 def create_engine(user, password, database, host='127.0.0.1', port = 3306, **kw):
     """
     db模型的核心函数，用于连接数据库, 生成全局对象engine，
@@ -72,7 +175,7 @@ def create_engine(user, password, database, host='127.0.0.1', port = 3306, **kw)
     if engine is not None:
         raise DBError('Engine is already init')
     params = dict(user=user, password = password, database = database, host = host, port = port)
-    defaults = dict(use_unicode = True, charset = 'utf-8', collation = 'utf8_general_ci', autocommit = False)
+    defaults = dict(use_unicode=True, charset='utf8', collation='utf8_general_ci', autocommit=False)
     for k,v in defaults.iteritems():
         params[k] = kw.pop(k, v) # 删除kw中的k 并且当找不到k的时候返回v值
     params.update(kw)
@@ -167,6 +270,7 @@ def _select(sql, first, *args):
     执行SQL，返回一个结果 或者多个结果组成的列表
     """
     global _db_ctx
+    cursor = None
     sql = sql.replace('?', '%s')
     logging.info('SQL: %s, ARGS: %s' % (sql, args))
     try:
@@ -316,112 +420,8 @@ def insert(table, **kw):
     IntegrityError: 1062 (23000): Duplicate entry '2000' for key 'PRIMARY'
     """
     cols, args = zip(*kw.iteritems())
-    sql = 'insert into `%s` values (%s)' % (table, ','.join(['%s' % col for col in cols]), ','.join(['?' for i in range(len(cols))]))
+    sql = 'insert into `%s` (%s) values (%s)' % (table, ','.join(['%s' % col for col in cols]), ','.join(['?' for i in range(len(cols))]))
     return _update(sql, *args)
-
-class Dict(dict):
-    """
-    字典对象
-    实现一个简单的可以通过属性访问的字典，比如 x.key = value
-    """
-    def __init__(self, names=(), values=(), **kw):
-        super(Dict, self).__init__(**kw)
-        for k,v in zip(names, values):
-            self[k] = v
-    
-    def __getattr__(self, key):
-        try:
-            return self[key]
-        except KeyError:
-            raise AttributeError(r"'Dict' object has no attribute '%s'" % key)
-    
-    def __setattr__(self, key, value):
-        self[key] = value
-
-class DBError(Exception):
-    pass
-
-class MultiColumnsError(Exception):
-    pass
-
-class _Engine(object):
-    """
-    数据库引擎对象
-    用于保存 db模块的核心函数：create_engine 创建出来的数据库连接
-    """
-    def __init__(self, connect):
-        self._connect = connect
-    def connect(self):
-        return self._connect
-
-class _LasyConnection(object):
-    """
-    惰性连接对象
-    仅当需要cursor对象时，才连接数据库，获取连接
-    """
-    def __init__(self):
-        self.connection = None
-
-    def cursor(self):
-        if self.connection is None:
-            _connection = engine.connect()
-            logging.info('[CONNECTION [OPEN] connection] <%s>...' % hex(id(_connection)))
-            self.connection = _connection
-        return self.connection.cursor()
-
-    def commit(self):
-        self.connection.commit()
-    
-    def rollback(self):
-        self.connection.rollback()
-
-    def cleanup(self):
-        if self.connection:
-            _connection = self.connection
-            self.connection = None
-            logging.info('[CONNECTION] [CLOSE] <%s>...' % hex(id(_connection)))
-            _connection.close()
-
-
-class _DbCtx(threading.local):
-    """
-    db模块的核心对象, 数据库连接的上下文对象，负责从数据库获取和释放连接
-    取得的连接是惰性连接对象，因此只有调用cursor对象时，才会真正获取数据库连接
-    该对象是一个 Thread local对象，因此绑定在此对象上的数据 仅对本线程可见
-    """
-    def __init__(self):
-        self.connection = None
-        self.transactions = 0
-
-    def is_init(self):
-        """
-        返回一个布尔值，用于判断 此对象的初始化状态
-        """
-        return not self.connection is None
-
-    def init(self):
-        """
-        初始化连接的上下文对象，获得一个惰性连接对象
-        """
-        logging.info('open lazy connection...')
-        self.connection = _LasyConnection()
-        self.transactions = 0
-    
-    def cleanup(self):
-        """
-        清理连接对象，关闭连接
-        """
-        self.connection.cleanup()
-        self.connection = None
-    
-    def cursor(self):
-        """
-        获取cursor对象， 真正取得数据库连接
-        """
-        return self.connection.cursor()
-
-# thread-local db context:
-_db_ctx = _DbCtx()
 
 class _ConnectionCtx(object):
     """
