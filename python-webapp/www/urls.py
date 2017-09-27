@@ -14,3 +14,10 @@ def test_users():
     users = User.find_all()
     return dict(users=users)
 
+@view('blogs.html')
+@get('/blog')
+def blog():
+    blogs = Blog.find_all()
+
+    user = User.find_first('where email=?', 'admin@example.com')
+    return dict(blogs=blogs, user=user)
