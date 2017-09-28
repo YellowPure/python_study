@@ -37,7 +37,6 @@ WSGI概要：
 import types, os, re, cgi, sys, time, datetime, functools, mimetypes, threading, logging, traceback, urllib
 
 from db import Dict
-import utils
 
 try:
     from cStringIO import StringIO
@@ -390,6 +389,55 @@ class HttpError(object):
         """
         return _RedirectError(303, location)
 
+    @staticmethod
+    def _to_str(s):
+        '''
+        Convert to str.
+        >>> _to_str('s123') == 's123'
+        True
+        >>> _to_str(u'\u4e2d\u6587') == '\xe4\xb8\xad\xe6\x96\x87'
+        True
+        >>> _to_str(-123) == '-123'
+        True
+        '''
+        if isinstance(s, str):
+            return s
+        if isinstance(s, unicode):
+            return s.encode('utf-8')
+        return str(s)
+
+    @staticmethod
+    def _to_unicode(s, encoding='utf-8'):
+        '''
+        Convert to unicode.
+        >>> _to_unicode('\xe4\xb8\xad\xe6\x96\x87') == u'\u4e2d\u6587'
+        True
+        '''
+        return s.decode('utf-8')
+    
+    @staticmethod
+    def _quote(s, encoding='utf-8'):
+        '''
+        Url quote as str.
+        >>> _quote('http://example/test?a=1+')
+        'http%3A//example/test%3Fa%3D1%2B'
+        >>> _quote(u'hello world!')
+        'hello%20world%21'
+        '''
+        if isinstance(s, unicode):
+            s = s.encode(encoding)
+        return urllib.quote(s)
+    
+    @staticmethod
+    def _unquote(s, encoding='utf-8'):
+        '''
+        Url unquote as unicode.
+        >>> _unquote('http%3A//example/test%3Fa%3D1+')
+        u'http://example/test?a=1+'
+        '''
+        return urllib.unquote(s).decode(encoding)
+
+
 _RESPONSE_HEADER_DICT = dict(zip(map(lambda x: x.upper(), _RESPONSE_HEADERS), _RESPONSE_HEADERS))
 
 class Request(object):
@@ -412,10 +460,10 @@ class Request(object):
         """
         def _convert(item):
             if isinstance(item, list):
-                return [utils.to_unicode(i.value) for i in item]
+                return [HttpError._to_unicode(i.value) for i in item]
             if item.filename:
                 return MultipartFile(item)
-            return utils.to_unicode(item.value)
+            return HttpError._to_unicode(item.value)
         fs = cgi.FieldStorage(fp=self._environ['wsgi.input'], environ=self._environ, keep_blank_values=True)
         inputs = dict()
         for key in fs:
@@ -683,7 +731,7 @@ class Request(object):
                 for c in cookie_str.split(';'):
                     pos = c.find('=')
                     if pos > 0:
-                        cookies[c[:pos].strip()] = utils.unquote(c[pos+1:])
+                        cookies[c[:pos].strip()] = HttpError._unquote(c[pos+1:])
             self._cookies = cookies
         return self._cookies
 
@@ -733,7 +781,7 @@ class Response(object):
         key = name.upper()
         if key not in _RESPONSE_HEADER_DICT:
             key = name
-        self._headers[key] = utils.to_str(value)
+        self._headers[key] = HttpError._to_str(value)
     
     def header(self, name):
         """
@@ -780,7 +828,7 @@ class Response(object):
         >>> r.content_type
         'application/json'
         """
-        return self.header['CONTENT-TYPE']
+        return self.header('CONTENT-TYPE')
 
     @content_type.setter
     def content_type(self, value):
@@ -854,7 +902,6 @@ class Response(object):
         """
         if not hasattr(self, '_cookies'):
             self._cookies = {}
-        L = ['%s=%s' % (utils.quote(name), utils.quote(value))]
         if expires is not None:
             if isinstance(expires, (float, int, long)):
                 L.append('Expires=%s' % datetime.datetime.fromtimestamp(expires, UTC_0).strftime('%a, %d-%b-%y %H:%M:%S GMT'))
@@ -1122,7 +1169,7 @@ class StaticFileRoute(object):
 
     def __call__(self, *args):
         fpath = os.path.join(ctx.application.document_root, args[0])
-        if not os.path.isfile(path):
+        if not os.path.isfile(fpath):
             raise HttpError.notfound()
         fext = os.path.splitext(fpath)[1]
         ctx.response.content_type = mimetypes.types_map.get(fext.lower(), 'application/octet-stream')
@@ -1136,7 +1183,6 @@ class MultipartFile(object):
     f.file # file-like object
     """
     def __init__(self, storage):
-        self.filename = utils.to_unicode(storage.filename)
         self.file = storage.file
 
 #################################################################
@@ -1441,7 +1487,7 @@ class WSGIApplication(object):
         """
         from wsgiref.simple_server import make_server
         logging.info('application (%s) will start at %s:%s...' % (self._document_root, host, port))
-        server = make_server(host, port, self.get_wsgi_application())
+        server = make_server(host, port, self.get_wsgi_application(True))
         server.serve_forever()
     
     def get_wsgi_application(self, debug=False):
