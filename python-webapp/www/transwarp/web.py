@@ -549,7 +549,7 @@ class Request(object):
             return r[:]
         return [r]
 
-    def input(self):
+    def input(self, **kw):
         """
         返回一个由传入的数据和从environ里取出的数据 组成的Dict对象，Dict对象的定义 见db模块
         Get input as dict from request, fill dict using provided default value if key not exist.
@@ -812,8 +812,8 @@ class Response(object):
         """
         L = [(_RESPONSE_HEADER_DICT.get(k, k), v) for k,v in self._headers.iteritems()]
         if hasattr(self, '_cookies'):
-            for v in self._cookies.iteritems():
-                L.append('Set-Cookie', v)
+            for v in self._cookies.itervalues():
+                L.append(('Set-Cookie', v))
         L.append(_HEADER_X_POWERED_BY)
         return L
 
@@ -902,6 +902,7 @@ class Response(object):
         """
         if not hasattr(self, '_cookies'):
             self._cookies = {}
+        L = ['%s=%s' % (HttpError._quote(name), HttpError._quote(value))]
         if expires is not None:
             if isinstance(expires, (float, int, long)):
                 L.append('Expires=%s' % datetime.datetime.fromtimestamp(expires, UTC_0).strftime('%a, %d-%b-%y %H:%M:%S GMT'))
@@ -916,7 +917,7 @@ class Response(object):
             L.append('Secure')
         if http_only:
             L.append('HttpOnly')
-        self._cookies[name] = ';'.join(L)
+        self._cookies[name] = '; '.join(L)
     
     def unset_cookie(self, name):
         """
@@ -1538,6 +1539,7 @@ class WSGIApplication(object):
                     r = r.encode('utf-8')
                 if r is None:
                     r = []
+                print response.headers
                 start_response(response.status, response.headers)
                 return r
             except _RedirectError, e:

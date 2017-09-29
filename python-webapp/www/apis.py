@@ -48,10 +48,10 @@ def api(func):
     def _wrapper(*args, **kw):
         try:
             r = json.dumps(func(*args, **kw))
-            logging.info('r is:' % r)
         except APIError, e:
             r = json.dumps(dict(error = e, data = e.data, message = e.message))
         except Exception, e:
+            logging.exception(e)
             r = json.dumps(dict(error = 'internalerror', data = e.__class__.__name__, message = e.message))
         ctx.response.content_type = 'application/json'
         return r

@@ -7,9 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{% block title %} ? {% endblock%} Python Web App</title>
-    <link rel="stylesheet" type='text/css' href="/static/css/uikit.min.css" >
-    <link rel="stylesheet" type='text/css' href="/static/css/uikit.gradient.min.css" >
-    <link rel="stylesheet" type='text/css' href="/static/css/awesome.css" > 
+    <link rel="stylesheet" href="/static/css/uikit.min.css">
+    <link rel="stylesheet" href="/static/css/uikit.gradient.min.css">
+    <link rel="stylesheet" href="/static/css/awesome.css" />
+    <script src="/static/js/jquery-3.2.1.min.js"></script>
+    <script src="/static/js/md5.js"></script>
+    <script src="/static/js/uikit.min.js"></script>
+    <script src="/static/js/sticky.min.js"></script>
+    <script src="/static/js/vue.min.js"></script>
+    <script src="/static/js/awesome.js"></script>
     {% block beforehead %} <!-- before head  --> {% endblock%}
 </head>
 
@@ -65,9 +71,6 @@
             </div>
         </div>
     </div>
-    <script src="/static/js/jquery-3.2.1.min.js"></script>
-    <script src="/static/js/uikit.min.js"></script>
-    <script src="/static/js/awesome.js"></script>
 </body>
 
 </html>
